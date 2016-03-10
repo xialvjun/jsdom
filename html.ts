@@ -1197,69 +1197,16 @@ let classListProcessor = (className: any, value: string = '') => {
     if (className instanceof Array) {
         Array(className).forEach(sub => { value = classListProcessor(sub, value) })
     }
-    if(className instanceof Object) {
+    if (className instanceof Object) {
         for (var name in className) {
             className[name] ? value += ' ' + name.trim().replace(/[A-Z]/g, (match) => '-' + match.toLowerCase()) : null
         }
     }
-    if(className instanceof String) {
+    if (className instanceof String) {
         value += ' ' + className
     }
     return value
 }
-
-// let attrPreprocessor = (attrs: Object) => {
-//     let _attrs = {}
-//     for (var name in attrs) {
-//         switch (name) {
-//             case 'className':
-//                 _attrs['class'] = classListProcessor(attrs['className'])
-//                 break;
-//             case 'disabled':
-//                 attrs['disabled'] ? _attrs['disabled'] = true : null
-//                 break;
-//             default:
-//                 _attrs[name] = attrs[name]
-//                 break;
-//         }
-//     }
-//     return _attrs
-// }
-
-// let createElement = (tagName: string, attrs: Object, children: Node[]) => {
-//     let element = document.createElement(tagName)
-//     let _attrs = attrPreprocessor(attrs)
-//     for (var name in _attrs) {
-//         let value = _attrs[name]
-//         if (typeof value === 'function') {
-//             name.slice(0, 2) === 'on' ? element[name] = value : element['on' + name] = value
-//         } else {
-//             element.setAttribute(name, value)
-//         }
-//     }
-//     children.forEach(element.appendChild)
-//     Object(element).update = (attrs: Object, children: Node[]) => updateElement(element, attrs, children)
-//     return element
-// }
-
-// let updateElement = (element: HTMLElement, attrs: Object, children: Node[]) => {
-//     let _attrs = attrPreprocessor(attrs)
-//     for (var name in _attrs) {
-//         let value = _attrs[name]
-//         if (typeof value === 'function') {
-//             name.slice(0, 2) === 'on' ? element[name] = value : element['on' + name] = value
-//         } else {
-//             element.setAttribute(name, value)
-//         }
-//     }
-//     for (var i = 0; i < element.children.length; i++) {
-//         element.removeChild(element.children.item(i))
-//     }
-//     children.forEach(element.appendChild)
-//     return element
-// }
-
-
 
 let attrPreprocessor = (name: string, value: any) => {
     name = name.trim()
@@ -1291,25 +1238,27 @@ let attrPreprocessor = (name: string, value: any) => {
         case 'seamless':
         case 'selected':
         case 'spellcheck':
-            return value ? [name, true ] : ['', '']
+            return value ? [name, true] : ['', '']
         default:
             return [name.replace(/[A-Z]/g, (match) => '-' + match.toLowerCase()), value]
     }
 }
 
 // merge with interface HTMLElement
-interface HTMLElement {
-    update: (attrs: Object, children: Node[]) => HTMLElement
-}
+// interface HTMLElement {
+//     update: (attrs: Object, children: Node[]) => HTMLElement
+// }
 
-let createElement = (tagName: string, attrs: Object, children: Node[]) => {
-    let element = document.createElement(tagName)
+let _createElement = (tagName: string) => {
+    return document.createElement(tagName)
+}
+let _updateAttributes = (element: HTMLElement, attrs: Object) => {
     for (var name in attrs) {
         let value = attrs[name]
         if (typeof value === 'function') {
             // 先处理事件名 click, onclick, onClick, mouseOver, onMouseOver, on-click 都可以
-            name.slice(0, 2) === 'on' ? 
-                element[name.toLowerCase().replace('-', '')] = value : 
+            name.slice(0, 2) === 'on' ?
+                element[name.toLowerCase().replace('-', '')] = value :
                 element['on' + name.toLowerCase().replace('-', '')] = value
         } else {
             // 后处理属性名及属性值
@@ -1319,29 +1268,40 @@ let createElement = (tagName: string, attrs: Object, children: Node[]) => {
             _name ? element.setAttribute(_name, _value) : null
         }
     }
-    children.forEach(element.appendChild)
-    element.update = (attrs: Object, children: Node[]) => updateElement(element, attrs, children)
+    return element
+}
+let _cleanAttributes = (element: HTMLElement) => {
+    for (var i = element.attributes.length - 1; i >= 0; i--) {
+        element.removeAttribute(element.attributes[i].name)
+    }
+    return element
+}
+let _appendChildNodes = (element: HTMLElement, childNodes: Node[]) => {
+    childNodes.forEach(child => element.appendChild(child))
+    return element
+}
+let _cleanChildNodes = (element: HTMLElement) => {
+    for (var i = element.childNodes.length - 1; i >= 0; i--) {
+        element.removeChild(element.childNodes[i])
+    }
     return element
 }
 
-let updateElement = (element: HTMLElement, attrs: Object, children: Node[]) => {
-    for (var name in attrs) {
-        let value = attrs[name]
-        if (typeof value === 'function') {
-            // 先处理事件名 click, onclick, onClick, mouseOver, onMouseOver, on-click 都可以
-            name.slice(0, 2) === 'on' ?
-                element[name.toLowerCase().replace('-', '')] = value :
-                element['on' + name.toLowerCase().replace('-', '')] = value
-        } else {
-            let [_name, _value] = attrPreprocessor(name, value)
-            _name ? element.setAttribute(_name, _value) : null
-        }
+let childNodes = (element: HTMLElement) => {
+    let nodes: Node[] = []
+    for (var i = element.childNodes.length - 1; i >= 0; i--) {
+        nodes.push(element.childNodes[i])
     }
-    for (var i = 0; i < element.children.length; i++) {
-        element.removeChild(element.children.item(i))
-    }
-    children.forEach(element.appendChild)
-    return element
+    return nodes
+}
+
+
+let createElement = (tagName: string, attrs: Object, childNodes: Node[]) => {
+    return _appendChildNodes(_updateAttributes(_createElement(tagName), attrs), childNodes)
+}
+
+let updateElement = (element: HTMLElement, attrs: Object, childNodes: Node[]) => {
+    return _appendChildNodes(_cleanChildNodes(_updateAttributes(element, attrs)), childNodes)
 }
 
 let text = (data: string) => document.createTextNode(data)
@@ -1351,25 +1311,25 @@ let button = (attr: Object, text: Text) => createElement('button', attr, [text])
 
 createElement('a', {}, [createElement('div', {}, []), text('adsf')])
 
-
-let node = 
+var bb: Text
+let node =
     div({
-        'class': 'modal fade', 
-        dataBackdrop: false, 
-        dataKeyboard: false, 
-        id: 'buyProductModal', 
-        tabindex: -1, 
-        role: 'dialog', 
+        'class': 'modal fade',
+        dataBackdrop: false,
+        dataKeyboard: false,
+        id: 'buyProductModal',
+        tabindex: -1,
+        role: 'dialog',
         'aria-labelledby': 'buyProductModalLabel',
     }, [
-        div({ className: 'modal-dialog', role: 'document' }, [
-            div({className:'modal-content'}, [
-                div({className: 'modal-header'}, [
-                    button({className:'close', type:'button', dataMiss:'modal', ariaLabel:'Close', click:()=>{node.update({dataMiss:'jiangui'}, node.childNodes)}}, text('nihao'))
+            div({ className: 'modal-dialog', role: 'document' }, [
+                div({ className: 'modal-content' }, [
+                    div({ className: 'modal-header' }, [
+                        button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: () => { updateElement(node, { dataMiss: 'jiangui' }, childNodes(node)); bb.textContent += 'abc'; } }, bb = text('nihao'))
+                    ])
                 ])
             ])
-        ])
-    ]
-)
+        ]
+    )
 
-    node.children
+document.body.appendChild(node)
