@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+</head>
+<body>
+<div id="app"></div>
+<div id="app1"></div>
+    <script type="text/javascript">
+var classListProcessor = function (className, value) {
+    if (value === void 0) { value = ''; }
+    if (className instanceof Array) {
+        Array(className).forEach(function (sub) { value = classListProcessor(sub, value); });
+    }
+    if (className instanceof Object) {
+        for (var name in className) {
+            className[name] ? value += ' ' + name.trim().replace(/[A-Z]/g, function (match) { return '-' + match.toLowerCase(); }) : null;
+        }
+    }
+    if (className instanceof String) {
+        value += ' ' + className;
+    }
+    return value;
+};
+var attrPreprocessor = function (name, value) {
+    name = name.trim();
+    switch (name) {
+        case 'className':
+            return ['class', classListProcessor(value)];
+        case 'class':
+            return ['class', classListProcessor(value)];
+        case 'async':
+        case 'autocomplete':
+        case 'autofocus':
+        case 'autoplay':
+        case 'checked':
+        case 'contenteditable':
+        case 'controls':
+        case 'default':
+        case 'defer':
+        case 'disabled':
+        case 'download':
+        case 'hidden':
+        case 'ismap':
+        case 'loop':
+        case 'multiple':
+        case 'novalidate':
+        case 'readonly':
+        case 'required':
+        case 'reversed':
+        case 'scoped':
+        case 'seamless':
+        case 'selected':
+        case 'spellcheck':
+            return value ? [name, true] : ['', ''];
+        default:
+            return [name.replace(/[A-Z]/g, function (match) { return '-' + match.toLowerCase(); }), value];
+    }
+};
+var createElement = function (tagName, attrs, children) {
+    var element = document.createElement(tagName);
+    for (var name in attrs) {
+        var value = attrs[name];
+        if (typeof value === 'function') {
+            // 先处理事件名 click, onclick, onClick, mouseOver, onMouseOver, on-click 都可以
+            name.slice(0, 2) === 'on' ?
+                element[name.toLowerCase().replace('-', '')] = value :
+                element['on' + name.toLowerCase().replace('-', '')] = value;
+        }
+        else {
+            // 后处理属性名及属性值
+            // class可以属性名是 className, class 值可以是 string, dict<string, bool>, array<string|dict<string, bool>>, 
+            // bool属性如 disabled, 当值为 false 时不会被 setAttribute
+            var _a = attrPreprocessor(name, value), _name = _a[0], _value = _a[1];
+            _name ? element.setAttribute(_name, _value) : null;
+        }
+    }
+    children.forEach(function (child) { return element.appendChild(child); });
+    element.update = function (attrs, children) { return updateElement(element, attrs, children); };
+    return element;
+};
+var updateElement = function (element, attrs, children) {
+    for (var name in attrs) {
+        var value = attrs[name];
+        if (typeof value === 'function') {
+            // 先处理事件名 click, onclick, onClick, mouseOver, onMouseOver, on-click 都可以
+            name.slice(0, 2) === 'on' ?
+                element[name.toLowerCase().replace('-', '')] = value :
+                element['on' + name.toLowerCase().replace('-', '')] = value;
+        }
+        else {
+            var _a = attrPreprocessor(name, value), _name = _a[0], _value = _a[1];
+            _name ? element.setAttribute(_name, _value) : null;
+        }
+    }
+    for (var i = 0; i < element.children.length; i++) {
+        element.removeChild(element.children.item(i));
+    }
+    children.forEach(function (child) { return element.appendChild(child); });
+    return element;
+};
+var text = function (data) { return document.createTextNode(data); };
+var div = function (attrs, children) { return createElement('div', attrs, children); };
+var img = function (attrs) { return createElement('img', attrs, []); };
+var button = function (attr, text) { return createElement('button', attr, [text]); };
+createElement('a', {}, [createElement('div', {}, []), text('adsf')]);
+var node = div({
+    'class': 'modal fade',
+    dataBackdrop: false,
+    dataKeyboard: false,
+    id: 'buyProductModal',
+    tabindex: -1,
+    role: 'dialog',
+    'aria-labelledby': 'buyProductModalLabel',
+}, [
+    div({ className: 'modal-dialog', role: 'document' }, [
+        div({ className: 'modal-content' }, [
+            div({ className: 'modal-header' }, [
+                button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: function () {
+                    console.log('button clicked!')
+                    node.update({dataMiss: 'jiangui'}, node.childNodes)
+                } }, text('nihao'))
+            ])
+        ])
+    ])
+]);
+var node1 = div({
+    'class': 'modal fade',
+    dataBackdrop: false,
+    dataKeyboard: false,
+    id: 'buyProductModal',
+    tabindex: -1,
+    role: 'dialog',
+    'aria-labelledby': 'buyProductModalLabel',
+}, [
+    div({ className: 'modal-dialog', role: 'document' }, [
+        div({ className: 'modal-content' }, [
+            div({ className: 'modal-header' }, [
+                button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close' }, text('nihao'))
+            ])
+        ])
+    ])
+]);
+
+var app = document.getElementById('app')
+app.appendChild(node)
+var app1 = document.getElementById('app1')
+app1.appendChild(node)
+// document.body.appendChild(node);
+// document.body.appendChild(node);
+
+    </script>
+</body>
+</html>
