@@ -5,9 +5,12 @@
     <title>Document</title>
 </head>
 <body>
-<div id="app"></div>
-<div id="app1"></div>
     <script type="text/javascript">
+var html;
+// 目前不支持接收限定格式的子节点。。。例如限定格式为 (li>a)[]。。。
+// 不过感觉限定格式的子节点本身并没有太大意义。。。因为这种限定格式的html往往仅表示数据，所以js对象作为属性更合适
+// 至于子节点不限定格式，但是对子节点做一个包装，例如 margin: 20px，更正常的写法没有区别。。。
+// 事实上，这个库仅仅是html的一层抽象，具体的至于限定或包装子节点等都是具体的使用这个库去创建函数，构建组建，由组建内在逻辑去控制。
 var classListProcessor = function (className, value) {
     if (value === void 0) { value = ''; }
     if (className instanceof Array) {
@@ -23,6 +26,21 @@ var classListProcessor = function (className, value) {
     }
     return value;
 };
+var styleListProcessor = function (style, value) {
+    if (value === void 0) { value = ''; }
+    if (style instanceof Array) {
+        Array(style).forEach(function (sub) { value = styleListProcessor(sub, value); });
+    }
+    if (style instanceof Object) {
+        for (var name in style) {
+            value += ' ' + name.trim().replace(/[A-Z]/g, function (match) { return '-' + match.toLowerCase(); }) + '=' + style[name];
+        }
+    }
+    if (style instanceof String) {
+        value += ' ' + style;
+    }
+    return value;
+};
 var attrPreprocessor = function (name, value) {
     name = name.trim();
     switch (name) {
@@ -30,6 +48,8 @@ var attrPreprocessor = function (name, value) {
             return ['class', classListProcessor(value)];
         case 'class':
             return ['class', classListProcessor(value)];
+        case 'style':
+            return ['style', styleListProcessor(value)];
         case 'async':
         case 'autocomplete':
         case 'autofocus':
@@ -58,8 +78,14 @@ var attrPreprocessor = function (name, value) {
             return [name.replace(/[A-Z]/g, function (match) { return '-' + match.toLowerCase(); }), value];
     }
 };
-var createElement = function (tagName, attrs, children) {
-    var element = document.createElement(tagName);
+// merge with interface HTMLElement
+// interface HTMLElement {
+//     update: (attrs: Object, children: Node[]) => HTMLElement
+// }
+var _createElement = function (tagName) {
+    return document.createElement(tagName);
+};
+var _updateAttributes = function (element, attrs) {
     for (var name in attrs) {
         var value = attrs[name];
         if (typeof value === 'function') {
@@ -76,79 +102,110 @@ var createElement = function (tagName, attrs, children) {
             _name ? element.setAttribute(_name, _value) : null;
         }
     }
-    children.forEach(function (child) { return element.appendChild(child); });
-    element.update = function (attrs, children) { return updateElement(element, attrs, children); };
     return element;
 };
-var updateElement = function (element, attrs, children) {
-    for (var name in attrs) {
-        var value = attrs[name];
-        if (typeof value === 'function') {
-            // 先处理事件名 click, onclick, onClick, mouseOver, onMouseOver, on-click 都可以
-            name.slice(0, 2) === 'on' ?
-                element[name.toLowerCase().replace('-', '')] = value :
-                element['on' + name.toLowerCase().replace('-', '')] = value;
-        }
-        else {
-            var _a = attrPreprocessor(name, value), _name = _a[0], _value = _a[1];
-            _name ? element.setAttribute(_name, _value) : null;
-        }
+var _cleanAttributes = function (element) {
+    for (var i = element.attributes.length - 1; i >= 0; i--) {
+        element.removeAttribute(element.attributes[i].name);
     }
-    for (var i = 0; i < element.children.length; i++) {
-        element.removeChild(element.children.item(i));
-    }
-    children.forEach(function (child) { return element.appendChild(child); });
     return element;
+};
+var _appendChildNodes = function (element, childNodes) {
+    childNodes.forEach(function (child) { return element.appendChild(child); });
+    return element;
+};
+var _cleanChildNodes = function (element) {
+    for (var i = element.childNodes.length - 1; i >= 0; i--) {
+        element.removeChild(element.childNodes[i]);
+    }
+    return element;
+};
+var childNodes = function (element) {
+    var nodes = [];
+    for (var i = element.childNodes.length - 1; i >= 0; i--) {
+        nodes.push(element.childNodes[i]);
+    }
+    return nodes;
+};
+var createElement = function (tagName, attrs, childNodes) {
+    return _appendChildNodes(_updateAttributes(_createElement(tagName), attrs), childNodes);
+};
+var updateElement = function (element, attrs, childNodes) {
+    return _appendChildNodes(_cleanChildNodes(_updateAttributes(element, attrs)), childNodes);
 };
 var text = function (data) { return document.createTextNode(data); };
 var div = function (attrs, children) { return createElement('div', attrs, children); };
 var img = function (attrs) { return createElement('img', attrs, []); };
+var input = function (attrs) { return createElement('input', attrs, []); };
 var button = function (attr, text) { return createElement('button', attr, [text]); };
-createElement('a', {}, [createElement('div', {}, []), text('adsf')]);
-var node = div({
-    'class': 'modal fade',
-    dataBackdrop: false,
-    dataKeyboard: false,
-    id: 'buyProductModal',
-    tabindex: -1,
-    role: 'dialog',
-    'aria-labelledby': 'buyProductModalLabel',
-}, [
-    div({ className: 'modal-dialog', role: 'document' }, [
-        div({ className: 'modal-content' }, [
-            div({ className: 'modal-header' }, [
-                button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: function () {
-                    console.log('button clicked!')
-                    node.update({dataMiss: 'jiangui'}, node.childNodes)
-                } }, text('nihao'))
-            ])
-        ])
-    ])
-]);
-var node1 = div({
-    'class': 'modal fade',
-    dataBackdrop: false,
-    dataKeyboard: false,
-    id: 'buyProductModal',
-    tabindex: -1,
-    role: 'dialog',
-    'aria-labelledby': 'buyProductModalLabel',
-}, [
-    div({ className: 'modal-dialog', role: 'document' }, [
-        div({ className: 'modal-content' }, [
-            div({ className: 'modal-header' }, [
-                button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close' }, text('nihao'))
-            ])
-        ])
-    ])
-]);
+// createElement('a', {}, [createElement('div', {}, []), text('adsf')])
+// var bb: Text
+// let node =
+//     div({
+//         'class': 'modal fade',
+//         dataBackdrop: false,
+//         dataKeyboard: false,
+//         id: 'buyProductModal',
+//         tabindex: -1,
+//         role: 'dialog',
+//         'aria-labelledby': 'buyProductModalLabel',
+//     }, [
+//             div({ className: 'modal-dialog', role: 'document' }, [
+//                 div({ className: 'modal-content' }, [
+//                     div({ className: 'modal-header' }, [
+//                         button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: () => { updateElement(node, { dataMiss: 'jiangui' }, childNodes(node)); bb.textContent += 'abc'; } }, bb = text('nihao'))
+//                     ])
+//                 ])
+//             ])
+//         ]
+//     )
 
-var app = document.getElementById('app')
-app.appendChild(node)
-var app1 = document.getElementById('app1')
-app1.appendChild(node)
-// document.body.appendChild(node);
-// document.body.appendChild(node);
+var flux = {
+    value: '',
+    setValue: function (v) {
+        flux.value = v;
+        flux.dispatch();
+    },
+    increase: function () {
+        flux.value += 'wtf ';
+        flux.dispatch();
+    },
+    // listener: [],
+    // subscribe: (fn, params) => {
+    //     flux.listener.push([fn, params])
+    //     return fn(params)
+    // },
+    dispatch: function () {
+        // flux.listener.forEach(v => v[0](v[1]))
+        updateElement(app, {}, appChildren());
+    }
+};
+
+var benchmark = [];
+for (var i = 10000 - 1; i >= 0; i--) {
+    benchmark.push(i);
+}
+var appChildren = function () {
+    return [
+        // input({ type: 'text', value: flux.value, keyup: function (e) {
+        //         flux.setValue(e.currentTarget.value);
+        //     } }),
+        button({click: function (e) {
+            flux.increase()
+        }}, text('increase')),
+        div({}, benchmark.map(function (v) {
+            return div({}, [text(flux.value)]);
+        }))
+    ];
+};
+var app = div({}, []);
+document.body.appendChild(app);
+_appendChildNodes(app, appChildren());
+
+// setInterval(function () {
+//     flux.increase()
+// }, 1000)
+
 
     </script>
 </body>

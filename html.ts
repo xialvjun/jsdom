@@ -1208,6 +1208,21 @@ let classListProcessor = (className: any, value: string = '') => {
     return value
 }
 
+let styleListProcessor = (style: any, value: string = '') => {
+    if(style instanceof Array) {
+        Array(style).forEach(sub => { value = styleListProcessor(sub, value) })
+    }
+    if (style instanceof Object) {
+        for (var name in style) {
+            value += ' ' + name.trim().replace(/[A-Z]/g, (match) => '-' + match.toLowerCase()) + '=' + style[name]
+        }
+    }
+    if (style instanceof String) {
+        value += ' ' + style
+    }
+    return value
+}
+
 let attrPreprocessor = (name: string, value: any) => {
     name = name.trim()
     switch (name) {
@@ -1215,6 +1230,8 @@ let attrPreprocessor = (name: string, value: any) => {
             return ['class', classListProcessor(value)]
         case 'class':
             return ['class', classListProcessor(value)]
+        case 'style':
+            return ['style', styleListProcessor(value)]
         case 'async':
         case 'autocomplete':
         case 'autofocus':
@@ -1307,29 +1324,68 @@ let updateElement = (element: HTMLElement, attrs: Object, childNodes: Node[]) =>
 let text = (data: string) => document.createTextNode(data)
 let div = (attrs: Object, children: Node[]) => createElement('div', attrs, children)
 let img = (attrs: Object) => createElement('img', attrs, [])
+let input = (attrs: Object) => createElement('input', attrs, [])
 let button = (attr: Object, text: Text) => createElement('button', attr, [text])
 
-createElement('a', {}, [createElement('div', {}, []), text('adsf')])
+// createElement('a', {}, [createElement('div', {}, []), text('adsf')])
 
-var bb: Text
-let node =
-    div({
-        'class': 'modal fade',
-        dataBackdrop: false,
-        dataKeyboard: false,
-        id: 'buyProductModal',
-        tabindex: -1,
-        role: 'dialog',
-        'aria-labelledby': 'buyProductModalLabel',
-    }, [
-            div({ className: 'modal-dialog', role: 'document' }, [
-                div({ className: 'modal-content' }, [
-                    div({ className: 'modal-header' }, [
-                        button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: () => { updateElement(node, { dataMiss: 'jiangui' }, childNodes(node)); bb.textContent += 'abc'; } }, bb = text('nihao'))
-                    ])
-                ])
-            ])
-        ]
-    )
+// var bb: Text
+// let node =
+//     div({
+//         'class': 'modal fade',
+//         dataBackdrop: false,
+//         dataKeyboard: false,
+//         id: 'buyProductModal',
+//         tabindex: -1,
+//         role: 'dialog',
+//         'aria-labelledby': 'buyProductModalLabel',
+//     }, [
+//             div({ className: 'modal-dialog', role: 'document' }, [
+//                 div({ className: 'modal-content' }, [
+//                     div({ className: 'modal-header' }, [
+//                         button({ className: 'close', type: 'button', dataMiss: 'modal', ariaLabel: 'Close', click: () => { updateElement(node, { dataMiss: 'jiangui' }, childNodes(node)); bb.textContent += 'abc'; } }, bb = text('nihao'))
+//                     ])
+//                 ])
+//             ])
+//         ]
+//     )
 
-document.body.appendChild(node)
+
+let benchmark = []
+for (var i = 10000 - 1; i >= 0; i--) {
+    benchmark.push(i)
+}
+
+let appChildren = () => {
+    return [
+        input({ type: 'text', value: flux.value, change: (e) => {
+            flux.setValue(e.currentTarget.value)
+        } }),
+        div(
+            {},
+            benchmark.map(v => {
+                return div({}, [text(flux.value)])
+            })
+        )
+    ]
+}
+
+let app = div({}, [])
+document.body.appendChild(app)
+
+let flux = {
+    value: '',
+    setValue: (v) => {
+        flux.value = v
+        flux.dispatch()
+    },
+    // listener: [],
+    // subscribe: (fn, params) => {
+    //     flux.listener.push([fn, params])
+    //     return fn(params)
+    // },
+    dispatch: () => {
+        // flux.listener.forEach(v => v[0](v[1]))
+        updateElement(app, {}, appChildren())
+    }
+}
