@@ -60,7 +60,7 @@ let attrPreprocessor = (name: string, value: any) => {
         case 'seamless':
         case 'selected':
         case 'spellcheck':
-            return value ? [name, true] : ['', '']
+            return value ? [name, true] : [name, false]
         default:
             return [name.replace(/[A-Z]/g, (match) => '-' + match.toLowerCase()), value]
     }
@@ -79,10 +79,20 @@ let _updateAttributes = (element: HTMLElement, attrs: Object) => {
                 element['on' + name.toLowerCase().replace('-', '')] = value
         } else {
             // 后处理属性名及属性值
-            // class可以属性名是 className, class 值可以是 string, dict<string, bool>, array<string|dict<string, bool>>, 
+            // class可以属性名是 className, class 值可以是 string, dict<string, bool>, array<string|dict<string, bool>>,
             // bool属性如 disabled, 当值为 false 时不会被 setAttribute
             let [_name, _value] = attrPreprocessor(name, value)
-            _name ? element.setAttribute(_name, _value) : null
+            switch (_name) {
+              case 'value':
+                element.value = _value;
+                break;
+              case 'checked':
+                element.checked = _value;
+                break;
+              default:
+                _value ? element.setAttribute(_name, _value) : element.removeAttribute(_name);
+                break;
+            }
         }
     }
     return element
@@ -122,9 +132,16 @@ class DOM {
         }
     }
     render() {
+        this.element = this.element || document.createElement(this.tagName)
         this.children.map(child => child.render())
         return this.element
     }
+}
+
+class div extends DOM {
+  constructor(public attrs: Object = {}, public children: DomJs[] = [], public key?: string) {
+    super('div', attrs, children, key)
+  }
 }
 
 
